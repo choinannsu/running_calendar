@@ -611,6 +611,13 @@ body {
   align-items: center;
 }
 
+/* Date Number and Weather Icon Wrapper */
+.date-weather-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .date-number {
   font-family: var(--font-heading);
   font-size: 0.9rem;
@@ -619,6 +626,14 @@ body {
 }
 .sun-num { color: #F87171; }
 .sat-num { color: #60A5FA; }
+
+/* Weather Icon matching date number font size */
+.weather-icon {
+  font-size: 0.9rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
 
 .add-hover-icon {
   opacity: 0;

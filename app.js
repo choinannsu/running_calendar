@@ -7,6 +7,7 @@ class MarathonApp {
     this.targetMileage = 200; // default target km
     this.mileageData = {}; // Format: { "YYYY-MM-DD": { distance: 10, type: "tempo", note: "..." } }
     this.garminData = {};  // Garmin synced data format: { "YYYY-MM-DD": { distance: 10.5, pace: "5:10", note: "..." } }
+    this.weatherData = {}; // Seoul Weather format: { "YYYY-MM-DD": { icon: "☀️", desc: "맑음" } }
     this.garminLastUpdated = null;
 
     // Master Passcode SHA-256 Hash
@@ -20,6 +21,7 @@ class MarathonApp {
     this.loadStateFromStorage();
     this.bindEvents();
     await this.fetchGarminData();
+    await this.fetchSeoulWeather(this.currentYear, this.currentMonth);
     this.render();
     
     // Initialize Lucide Icons
@@ -79,6 +81,66 @@ class MarathonApp {
         card.classList.add('shake-anim');
       }
     });
+  }
+
+  // Open-Meteo Weather Code Mapper
+  getWeatherInfo(code) {
+    const map = {
+      0: { icon: '☀️', desc: '맑음' },
+      1: { icon: '🌤️', desc: '대체로 맑음' },
+      2: { icon: '⛅', desc: '구름 조금' },
+      3: { icon: '☁️', desc: '흐림' },
+      45: { icon: '🌫️', desc: '안개' },
+      48: { icon: '🌫️', desc: '짙은 안개' },
+      51: { icon: '🌧️', desc: '이슬비' },
+      53: { icon: '🌧️', desc: '이슬비' },
+      55: { icon: '🌧️', desc: '이슬비' },
+      61: { icon: '🌧️', desc: '비' },
+      63: { icon: '🌧️', desc: '강한 비' },
+      65: { icon: '🌧️', desc: '매우 강한 비' },
+      71: { icon: '❄️', desc: '눈' },
+      73: { icon: '❄️', desc: '눈' },
+      75: { icon: '❄️', desc: '폭설' },
+      80: { icon: '🌦️', desc: '소나기' },
+      81: { icon: '🌦️', desc: '강한 소나기' },
+      82: { icon: '⛈️', desc: '격렬한 소나기' },
+      95: { icon: '⛈️', desc: '뇌우' },
+      96: { icon: '⛈️', desc: '우박 뇌우' },
+      99: { icon: '⛈️', desc: '강한 우박 뇌우' }
+    };
+    return map[code] || { icon: '☀️', desc: '맑음' };
+  }
+
+  // Fetch Weather for Seoul (Lat: 37.5665, Lon: 126.9780)
+  async fetchSeoulWeather(year, month) {
+    try {
+      const monthStr = String(month).padStart(2, '0');
+      const totalDays = new Date(year, month, 0).getDate();
+      const startDate = `${year}-${monthStr}-01`;
+      const endDate = `${year}-${monthStr}-${String(totalDays).padStart(2, '0')}`;
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      let apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=37.5665&longitude=126.9780&daily=weather_code&timezone=Asia%2FTokyo&start_date=${startDate}&end_date=${endDate}`;
+
+      if (endDate < todayStr) {
+        apiUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=37.5665&longitude=126.9780&daily=weather_code&timezone=Asia%2FTokyo&start_date=${startDate}&end_date=${endDate}`;
+      }
+
+      const response = await fetch(apiUrl);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.daily && data.daily.time && data.daily.weather_code) {
+          const weatherMap = {};
+          data.daily.time.forEach((t, i) => {
+            const code = data.daily.weather_code[i];
+            weatherMap[t] = this.getWeatherInfo(code);
+          });
+          this.weatherData = weatherMap;
+        }
+      }
+    } catch (e) {
+      console.log('Weather fetch failed or fallback mode:', e);
+    }
   }
 
   // Fetch Garmin Synced Data (garmin_data.json)
@@ -151,7 +213,7 @@ class MarathonApp {
       const now = new Date();
       this.currentYear = now.getFullYear();
       this.currentMonth = now.getMonth() + 1;
-      this.render();
+      this.changeMonth(0);
     });
 
     const targetInput = document.getElementById('target-mileage-input');
@@ -245,7 +307,7 @@ class MarathonApp {
     });
   }
 
-  changeMonth(delta) {
+  async changeMonth(delta) {
     this.currentMonth += delta;
     if (this.currentMonth > 12) {
       this.currentMonth = 1;
@@ -254,6 +316,7 @@ class MarathonApp {
       this.currentMonth = 12;
       this.currentYear -= 1;
     }
+    await this.fetchSeoulWeather(this.currentYear, this.currentMonth);
     this.saveStateToStorage();
     this.render();
   }
@@ -399,6 +462,10 @@ class MarathonApp {
       if (dayOfWeek === 0) numClass = 'sun-num';
       if (dayOfWeek === 6) numClass = 'sat-num';
 
+      // Get Weather info for Seoul
+      const weatherInfo = this.weatherData[dateStr];
+      const weatherIconHTML = weatherInfo ? `<span class="weather-icon" title="서울 날씨: ${weatherInfo.desc}">${weatherInfo.icon}</span>` : '';
+
       let entryHTML = '';
       const entry = this.getEffectiveEntry(dateStr);
       
@@ -434,7 +501,10 @@ class MarathonApp {
 
       cell.innerHTML = `
         <div class="cell-top">
-          <span class="date-number ${numClass}">${day}</span>
+          <div class="date-weather-wrap">
+            <span class="date-number ${numClass}">${day}</span>
+            ${weatherIconHTML}
+          </div>
           <i data-lucide="plus" class="add-hover-icon"></i>
         </div>
         ${entryHTML}
