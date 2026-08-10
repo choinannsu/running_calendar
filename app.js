@@ -9,6 +9,9 @@ class MarathonApp {
     this.garminData = {};  // Garmin synced data format: { "YYYY-MM-DD": { distance: 10.5, pace: "5:10", note: "..." } }
     this.garminLastUpdated = null;
 
+    // Master Passcode SHA-256 Hash
+    this.MASTER_HASH = "fdcd529553d550ca944451a8bec062e3d3abbc9c455d478026f0cc6d44ffd1bd";
+
     this.init();
   }
 
@@ -25,9 +28,16 @@ class MarathonApp {
     }
   }
 
-  // Passcode Lock Security Engine
+  // SHA-256 Helper Function
+  async sha256(message) {
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  // Passcode Lock Security Engine (Master Lock)
   initPasscodeAuth() {
-    const savedPasscode = localStorage.getItem('app_passcode');
     const isUnlockedInSession = sessionStorage.getItem('app_unlocked') === 'true';
 
     const overlay = document.getElementById('passcode-lock-overlay');
@@ -36,53 +46,37 @@ class MarathonApp {
     const lockDesc = document.getElementById('lock-desc');
     const passInput = document.getElementById('passcode-input');
 
-    if (!savedPasscode) {
-      // First time setup
-      lockTitle.textContent = "🔒 비밀번호 최초 설정";
-      lockDesc.textContent = "나만 볼 수 있도록 비밀번호(PIN)를 입력해 등록해 주세요.";
-      overlay.classList.remove('hidden');
-      appContainer.classList.add('app-hidden');
-    } else if (!isUnlockedInSession) {
-      // Locked State
+    if (!isUnlockedInSession) {
       lockTitle.textContent = "🔒 보안 잠금";
-      lockDesc.textContent = "캘린더에 접근하려면 비밀번호를 입력해 주세요.";
+      lockDesc.textContent = "마라톤 캘린더에 접근하려면 비밀번호를 입력해 주세요.";
       overlay.classList.remove('hidden');
       appContainer.classList.add('app-hidden');
     } else {
-      // Unlocked
       overlay.classList.add('hidden');
       appContainer.classList.remove('app-hidden');
     }
 
-    // Passcode Form Submit
+    // Passcode Form Submit Handler
     const lockForm = document.getElementById('lock-form');
-    lockForm.addEventListener('submit', (e) => {
+    lockForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const entered = passInput.value.trim();
-      const currentSaved = localStorage.getItem('app_passcode');
+      if (!entered) return;
 
-      if (!currentSaved) {
-        if (entered.length < 1) return;
-        localStorage.setItem('app_passcode', entered);
+      const enteredHash = await this.sha256(entered);
+
+      if (enteredHash === this.MASTER_HASH) {
         sessionStorage.setItem('app_unlocked', 'true');
         overlay.classList.add('hidden');
         appContainer.classList.remove('app-hidden');
+        document.getElementById('lock-error-msg').classList.add('hidden');
         passInput.value = '';
-        alert('비밀번호가 설정되었습니다!');
       } else {
-        if (entered === currentSaved) {
-          sessionStorage.setItem('app_unlocked', 'true');
-          overlay.classList.add('hidden');
-          appContainer.classList.remove('app-hidden');
-          document.getElementById('lock-error-msg').classList.add('hidden');
-          passInput.value = '';
-        } else {
-          document.getElementById('lock-error-msg').classList.remove('hidden');
-          const card = document.querySelector('.lock-card');
-          card.classList.remove('shake-anim');
-          void card.offsetWidth; // trigger reflow
-          card.classList.add('shake-anim');
-        }
+        document.getElementById('lock-error-msg').classList.remove('hidden');
+        const card = document.querySelector('.lock-card');
+        card.classList.remove('shake-anim');
+        void card.offsetWidth; // trigger reflow
+        card.classList.add('shake-anim');
       }
     });
 
@@ -91,7 +85,7 @@ class MarathonApp {
       sessionStorage.removeItem('app_unlocked');
       passInput.value = '';
       lockTitle.textContent = "🔒 보안 잠금";
-      lockDesc.textContent = "캘린더에 접근하려면 비밀번호를 입력해 주세요.";
+      lockDesc.textContent = "마라톤 캘린더에 접근하려면 비밀번호를 입력해 주세요.";
       document.getElementById('lock-error-msg').classList.add('hidden');
       overlay.classList.remove('hidden');
       appContainer.classList.add('app-hidden');
