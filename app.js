@@ -171,7 +171,7 @@ class MarathonApp {
     document.getElementById('btn-sample-data').addEventListener('click', () => this.loadSampleData());
 
     document.getElementById('btn-clear-all').addEventListener('click', () => {
-      if (confirm('정말로 모든 수동 마일리지 기록을 초기화하시겠습니까?')) {
+      if (confirm('정말로 모든 수동 마일리지 및 수정 기록을 초기화하시겠습니까?')) {
         this.mileageData = {};
         this.saveStateToStorage();
         this.render();
@@ -260,10 +260,18 @@ class MarathonApp {
     document.getElementById('current-year-month').textContent = `${this.currentYear}년 ${this.currentMonth}월`;
   }
 
+  // Get Effective Entry: User's Manual Overrides Take Precedence over Garmin
   getEffectiveEntry(dateStr) {
-    const garminEntry = this.garminData[dateStr];
     const manualEntry = this.mileageData[dateStr];
+    const garminEntry = this.garminData[dateStr];
 
+    // User manual edit or explicit deletion exists
+    if (manualEntry !== undefined) {
+      if (manualEntry.isDeleted) return null;
+      return manualEntry;
+    }
+
+    // Default fallback to Garmin synced data
     if (garminEntry) {
       return {
         distance: garminEntry.distance,
@@ -273,7 +281,7 @@ class MarathonApp {
         pace: garminEntry.pace
       };
     }
-    return manualEntry || null;
+    return null;
   }
 
   updateDashboardMetrics() {
@@ -521,8 +529,9 @@ class MarathonApp {
       }
 
       if (shouldApply) {
-        if (mode === 'add' && this.mileageData[dateKey]) {
-          const prevDist = parseFloat(this.mileageData[dateKey].distance) || 0;
+        if (mode === 'add') {
+          const prevEntry = this.getEffectiveEntry(dateKey);
+          const prevDist = prevEntry ? (parseFloat(prevEntry.distance) || 0) : 0;
           targetKm = prevDist + targetKm;
         }
 
@@ -564,13 +573,19 @@ class MarathonApp {
     const note = document.getElementById('edit-note').value.trim();
 
     if (km > 0 || type === 'rest') {
+      // User manual edit takes precedence over Garmin
       this.mileageData[dateKey] = {
         distance: type === 'rest' ? 0 : km,
         type: type,
         note: note
       };
     } else {
-      delete this.mileageData[dateKey];
+      if (this.garminData[dateKey]) {
+        // Mark Garmin entry as explicitly deleted by user
+        this.mileageData[dateKey] = { isDeleted: true };
+      } else {
+        delete this.mileageData[dateKey];
+      }
     }
 
     this.saveStateToStorage();
@@ -580,11 +595,14 @@ class MarathonApp {
 
   handleDeleteSingleEdit() {
     const dateKey = document.getElementById('edit-date-key').value;
-    if (this.mileageData[dateKey]) {
+    if (this.garminData[dateKey]) {
+      // Explicitly mark Garmin entry as deleted by user
+      this.mileageData[dateKey] = { isDeleted: true };
+    } else {
       delete this.mileageData[dateKey];
-      this.saveStateToStorage();
-      this.render();
     }
+    this.saveStateToStorage();
+    this.render();
     document.getElementById('single-edit-modal').classList.add('hidden');
   }
 
