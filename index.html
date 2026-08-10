@@ -13,7 +13,28 @@
 </head>
 <body>
 
-  <div class="app-container">
+  <!-- Fullscreen Passcode Lock Screen Overlay -->
+  <div id="passcode-lock-overlay" class="lock-overlay">
+    <div class="lock-card">
+      <div class="lock-icon-wrap">
+        <i data-lucide="shield-lock"></i>
+      </div>
+      <h2 id="lock-title">마라톤 캘린더 보안 잠금</h2>
+      <p id="lock-desc" class="lock-desc">페이지에 접근하려면 비밀번호를 입력해 주세요.</p>
+      
+      <form id="lock-form" class="lock-form">
+        <div class="lock-input-group">
+          <input type="password" id="passcode-input" class="form-input lock-input" placeholder="비밀번호 입력" required autofocus>
+        </div>
+        <div id="lock-error-msg" class="lock-error hidden">비밀번호가 올바르지 않습니다.</div>
+        <button type="submit" class="btn btn-primary btn-lock-submit">
+          <i data-lucide="key-round"></i> 잠금 해제
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div id="main-app-content" class="app-container app-hidden">
     <!-- Top Navigation Header -->
     <header class="main-header">
       <div class="brand">
@@ -28,6 +49,9 @@
       </div>
 
       <div class="header-actions">
+        <button id="btn-lock-app" class="btn btn-outline" title="화면 즉시 잠금">
+          <i data-lucide="lock"></i> 잠금
+        </button>
         <button id="btn-sample-data" class="btn btn-outline" title="샘플 훈련 계획 불러오기">
           <i data-lucide="sparkles"></i> 샘플 계획
         </button>

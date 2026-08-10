@@ -13,6 +13,7 @@ class MarathonApp {
   }
 
   async init() {
+    this.initPasscodeAuth();
     this.loadStateFromStorage();
     this.bindEvents();
     await this.fetchGarminData();
@@ -22,6 +23,79 @@ class MarathonApp {
     if (window.lucide) {
       window.lucide.createIcons();
     }
+  }
+
+  // Passcode Lock Security Engine
+  initPasscodeAuth() {
+    const savedPasscode = localStorage.getItem('app_passcode');
+    const isUnlockedInSession = sessionStorage.getItem('app_unlocked') === 'true';
+
+    const overlay = document.getElementById('passcode-lock-overlay');
+    const appContainer = document.getElementById('main-app-content');
+    const lockTitle = document.getElementById('lock-title');
+    const lockDesc = document.getElementById('lock-desc');
+    const passInput = document.getElementById('passcode-input');
+
+    if (!savedPasscode) {
+      // First time setup
+      lockTitle.textContent = "🔒 비밀번호 최초 설정";
+      lockDesc.textContent = "나만 볼 수 있도록 비밀번호(PIN)를 입력해 등록해 주세요.";
+      overlay.classList.remove('hidden');
+      appContainer.classList.add('app-hidden');
+    } else if (!isUnlockedInSession) {
+      // Locked State
+      lockTitle.textContent = "🔒 보안 잠금";
+      lockDesc.textContent = "캘린더에 접근하려면 비밀번호를 입력해 주세요.";
+      overlay.classList.remove('hidden');
+      appContainer.classList.add('app-hidden');
+    } else {
+      // Unlocked
+      overlay.classList.add('hidden');
+      appContainer.classList.remove('app-hidden');
+    }
+
+    // Passcode Form Submit
+    const lockForm = document.getElementById('lock-form');
+    lockForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const entered = passInput.value.trim();
+      const currentSaved = localStorage.getItem('app_passcode');
+
+      if (!currentSaved) {
+        if (entered.length < 1) return;
+        localStorage.setItem('app_passcode', entered);
+        sessionStorage.setItem('app_unlocked', 'true');
+        overlay.classList.add('hidden');
+        appContainer.classList.remove('app-hidden');
+        passInput.value = '';
+        alert('비밀번호가 설정되었습니다!');
+      } else {
+        if (entered === currentSaved) {
+          sessionStorage.setItem('app_unlocked', 'true');
+          overlay.classList.add('hidden');
+          appContainer.classList.remove('app-hidden');
+          document.getElementById('lock-error-msg').classList.add('hidden');
+          passInput.value = '';
+        } else {
+          document.getElementById('lock-error-msg').classList.remove('hidden');
+          const card = document.querySelector('.lock-card');
+          card.classList.remove('shake-anim');
+          void card.offsetWidth; // trigger reflow
+          card.classList.add('shake-anim');
+        }
+      }
+    });
+
+    // Lock Button in Header
+    document.getElementById('btn-lock-app').addEventListener('click', () => {
+      sessionStorage.removeItem('app_unlocked');
+      passInput.value = '';
+      lockTitle.textContent = "🔒 보안 잠금";
+      lockDesc.textContent = "캘린더에 접근하려면 비밀번호를 입력해 주세요.";
+      document.getElementById('lock-error-msg').classList.add('hidden');
+      overlay.classList.remove('hidden');
+      appContainer.classList.add('app-hidden');
+    });
   }
 
   // Fetch Garmin Synced Data (garmin_data.json)
@@ -55,7 +129,6 @@ class MarathonApp {
     }
   }
 
-  // Load from LocalStorage
   loadStateFromStorage() {
     const savedState = localStorage.getItem('marathon_mileage_app_v1');
     if (savedState) {
@@ -71,7 +144,6 @@ class MarathonApp {
     }
   }
 
-  // Save to LocalStorage
   saveStateToStorage() {
     const stateToSave = {
       currentYear: this.currentYear,
@@ -82,9 +154,7 @@ class MarathonApp {
     localStorage.setItem('marathon_mileage_app_v1', JSON.stringify(stateToSave));
   }
 
-  // Event Listeners
   bindEvents() {
-    // Month Selector Buttons
     document.getElementById('prev-month-btn').addEventListener('click', () => this.changeMonth(-1));
     document.getElementById('next-month-btn').addEventListener('click', () => this.changeMonth(1));
     document.getElementById('today-btn').addEventListener('click', () => {
@@ -94,7 +164,6 @@ class MarathonApp {
       this.render();
     });
 
-    // Target Mileage Input
     const targetInput = document.getElementById('target-mileage-input');
     targetInput.value = this.targetMileage;
     targetInput.addEventListener('change', (e) => {
@@ -105,10 +174,8 @@ class MarathonApp {
       this.updateDashboardMetrics();
     });
 
-    // Sample Data Button
     document.getElementById('btn-sample-data').addEventListener('click', () => this.loadSampleData());
 
-    // Clear All Button
     document.getElementById('btn-clear-all').addEventListener('click', () => {
       if (confirm('정말로 모든 수동 마일리지 기록을 초기화하시겠습니까?')) {
         this.mileageData = {};
@@ -117,14 +184,12 @@ class MarathonApp {
       }
     });
 
-    // Modal Control: Batch Modal
     const batchModal = document.getElementById('batch-modal');
     document.getElementById('btn-open-batch').addEventListener('click', () => this.openBatchModal());
     document.getElementById('close-batch-modal').addEventListener('click', () => batchModal.classList.add('hidden'));
     document.getElementById('cancel-batch-btn').addEventListener('click', () => batchModal.classList.add('hidden'));
     document.getElementById('apply-batch-btn').addEventListener('click', () => this.handleApplyBatch());
 
-    // Batch Tab Switching
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const targetTab = e.currentTarget.getAttribute('data-tab');
@@ -135,7 +200,6 @@ class MarathonApp {
       });
     });
 
-    // Weekly Pattern Checkboxes enable/disable inputs
     const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
     days.forEach(day => {
       const chk = document.getElementById(`chk-${day}`);
@@ -150,14 +214,12 @@ class MarathonApp {
       }
     });
 
-    // Modal Control: Single Edit Modal
     const editModal = document.getElementById('single-edit-modal');
     document.getElementById('close-edit-modal').addEventListener('click', () => editModal.classList.add('hidden'));
     document.getElementById('cancel-edit-btn').addEventListener('click', () => editModal.classList.add('hidden'));
     document.getElementById('save-edit-btn').addEventListener('click', () => this.handleSaveSingleEdit());
     document.getElementById('delete-entry-btn').addEventListener('click', () => this.handleDeleteSingleEdit());
 
-    // Quick Chip Buttons in Single Edit Modal
     document.querySelectorAll('.quick-chips .chip-btn').forEach(chip => {
       chip.addEventListener('click', (e) => {
         const editKmInput = document.getElementById('edit-km');
@@ -307,7 +369,6 @@ class MarathonApp {
 
     let currentWeekKm = 0;
 
-    // 1. Prev Month Overflow Days
     for (let i = firstDayIndex - 1; i >= 0; i--) {
       const prevDayNum = prevMonthTotalDays - i;
       const cell = document.createElement('div');
@@ -316,7 +377,6 @@ class MarathonApp {
       gridContainer.appendChild(cell);
     }
 
-    // 2. Current Month Days
     for (let day = 1; day <= totalDaysInMonth; day++) {
       const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const dayOfWeek = new Date(year, month - 1, day).getDay();
