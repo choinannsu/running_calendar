@@ -1,0 +1,4 @@
+user_passcode_memo.txt
+scratch/
+.env
+*.log
