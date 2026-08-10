@@ -611,11 +611,12 @@ body {
   align-items: center;
 }
 
-/* Date Number and Weather Icon Wrapper */
+/* Date Number, Weather Icon, and Min/Max Temperature Wrapper */
 .date-weather-wrap {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
+  overflow: hidden;
 }
 
 .date-number {
@@ -629,10 +630,19 @@ body {
 
 /* Weather Icon matching date number font size */
 .weather-icon {
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   line-height: 1;
   display: inline-flex;
   align-items: center;
+}
+
+.temp-text {
+  font-size: 0.68rem;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: -0.3px;
+  white-space: nowrap;
 }
 
 .add-hover-icon {

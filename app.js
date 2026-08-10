@@ -7,7 +7,7 @@ class MarathonApp {
     this.targetMileage = 200; // default target km
     this.mileageData = {}; // Format: { "YYYY-MM-DD": { distance: 10, type: "tempo", note: "..." } }
     this.garminData = {};  // Garmin synced data format: { "YYYY-MM-DD": { distance: 10.5, pace: "5:10", note: "..." } }
-    this.weatherData = {}; // Seoul Weather format: { "YYYY-MM-DD": { icon: "☀️", desc: "맑음" } }
+    this.weatherData = {}; // Seoul Weather format: { "YYYY-MM-DD": { icon: "☀️", desc: "맑음", tempMin: 24, tempMax: 31 } }
     this.garminLastUpdated = null;
 
     // Master Passcode SHA-256 Hash
@@ -19,6 +19,7 @@ class MarathonApp {
   async init() {
     this.initPasscodeAuth();
     this.loadStateFromStorage();
+    this.loadWeatherCache();
     this.bindEvents();
     await this.fetchGarminData();
     await this.fetchSeoulWeather(this.currentYear, this.currentMonth);
@@ -111,50 +112,92 @@ class MarathonApp {
     return map[code] || { icon: '☀️', desc: '맑음' };
   }
 
-  // Fetch Weather for Seoul with Safe Date Horizon Clamping
+  // Weather Cache in LocalStorage
+  loadWeatherCache() {
+    const saved = localStorage.getItem('marathon_weather_cache_v1');
+    if (saved) {
+      try {
+        this.weatherData = JSON.parse(saved) || {};
+      } catch (e) {
+        this.weatherData = {};
+      }
+    }
+  }
+
+  saveWeatherCache() {
+    localStorage.setItem('marathon_weather_cache_v1', JSON.stringify(this.weatherData));
+  }
+
+  // Fetch Weather for Seoul (Lat: 37.5665, Lon: 126.9780) with Min/Max Temp & Smart Caching
   async fetchSeoulWeather(year, month) {
+    this.loadWeatherCache();
+
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const monthStr = String(month).padStart(2, '0');
+    const totalDays = new Date(year, month, 0).getDate();
+
+    const datesToFetch = [];
+    for (let d = 1; d <= totalDays; d++) {
+      const dateStr = `${year}-${monthStr}-${String(d).padStart(2, '0')}`;
+      const isPast = dateStr < todayStr;
+
+      // Past date & already cached -> Skip network fetch!
+      if (isPast && this.weatherData[dateStr] && this.weatherData[dateStr].tempMin !== undefined) {
+        continue;
+      }
+      datesToFetch.push(dateStr);
+    }
+
+    if (datesToFetch.length === 0) {
+      return; // All past dates in this month are already safely cached!
+    }
+
+    const startDate = datesToFetch[0];
+    const monthLastDate = `${year}-${monthStr}-${String(totalDays).padStart(2, '0')}`;
+
+    // Max forecast horizon for Open-Meteo is ~14 days from today
+    const maxForecastDate = new Date(today);
+    maxForecastDate.setDate(maxForecastDate.getDate() + 14);
+    const maxForecastStr = maxForecastDate.toISOString().split('T')[0];
+
+    let endDate = monthLastDate;
+    if (monthLastDate > maxForecastStr) {
+      endDate = maxForecastStr;
+    }
+
+    if (startDate > endDate) {
+      return;
+    }
+
+    let apiUrl = '';
+    const params = `daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo`;
+
+    if (monthLastDate < todayStr) {
+      // Historical Archive API
+      apiUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=37.5665&longitude=126.9780&${params}&start_date=${startDate}&end_date=${monthLastDate}`;
+    } else {
+      // Forecast API
+      apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=37.5665&longitude=126.9780&${params}&start_date=${startDate}&end_date=${endDate}`;
+    }
+
     try {
-      const monthStr = String(month).padStart(2, '0');
-      const totalDays = new Date(year, month, 0).getDate();
-      const startDate = `${year}-${monthStr}-01`;
-      const monthLastDate = `${year}-${monthStr}-${String(totalDays).padStart(2, '0')}`;
-
-      const today = new Date();
-      const todayStr = today.toISOString().split('T')[0];
-
-      // Max Open-Meteo forecast horizon is ~14 days from today
-      const maxForecastDate = new Date(today);
-      maxForecastDate.setDate(maxForecastDate.getDate() + 14);
-      const maxForecastStr = maxForecastDate.toISOString().split('T')[0];
-
-      let endDate = monthLastDate;
-      if (monthLastDate > maxForecastStr) {
-        endDate = maxForecastStr;
-      }
-
-      let apiUrl = '';
-      if (monthLastDate < todayStr) {
-        // Past Historical Month -> Open-Meteo Archive API
-        apiUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=37.5665&longitude=126.9780&daily=weather_code&timezone=Asia%2FTokyo&start_date=${startDate}&end_date=${monthLastDate}`;
-      } else {
-        // Current or Future Month -> Open-Meteo Forecast API with Clamped Date Range
-        if (startDate > maxForecastStr) {
-          // Month is completely beyond 14-day forecast horizon
-          return;
-        }
-        apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=37.5665&longitude=126.9780&daily=weather_code&timezone=Asia%2FTokyo&start_date=${startDate}&end_date=${endDate}`;
-      }
-
       const response = await fetch(apiUrl);
       if (response.ok) {
         const data = await response.json();
         if (data.daily && data.daily.time && data.daily.weather_code) {
-          const weatherMap = { ...this.weatherData };
           data.daily.time.forEach((t, i) => {
             const code = data.daily.weather_code[i];
-            weatherMap[t] = this.getWeatherInfo(code);
+            const maxTemp = data.daily.temperature_2m_max ? Math.round(data.daily.temperature_2m_max[i]) : null;
+            const minTemp = data.daily.temperature_2m_min ? Math.round(data.daily.temperature_2m_min[i]) : null;
+
+            const info = this.getWeatherInfo(code);
+            info.tempMax = maxTemp;
+            info.tempMin = minTemp;
+
+            this.weatherData[t] = info;
           });
-          this.weatherData = weatherMap;
+          this.saveWeatherCache();
         }
       }
     } catch (e) {
@@ -481,9 +524,15 @@ class MarathonApp {
       if (dayOfWeek === 0) numClass = 'sun-num';
       if (dayOfWeek === 6) numClass = 'sat-num';
 
-      // Get Weather info for Seoul
+      // Get Weather info & Min/Max Temp for Seoul
       const weatherInfo = this.weatherData[dateStr];
-      const weatherIconHTML = weatherInfo ? `<span class="weather-icon" title="서울 날씨: ${weatherInfo.desc}">${weatherInfo.icon}</span>` : '';
+      let weatherHTML = '';
+      if (weatherInfo) {
+        const tempSpan = (weatherInfo.tempMin !== null && weatherInfo.tempMax !== null)
+          ? `<span class="temp-text" title="서울 최저 ${weatherInfo.tempMin}℃ / 최고 ${weatherInfo.tempMax}℃">${weatherInfo.tempMin}°/${weatherInfo.tempMax}°</span>`
+          : '';
+        weatherHTML = `<span class="weather-icon" title="서울 날씨: ${weatherInfo.desc}">${weatherInfo.icon}</span>${tempSpan}`;
+      }
 
       let entryHTML = '';
       const entry = this.getEffectiveEntry(dateStr);
@@ -522,7 +571,7 @@ class MarathonApp {
         <div class="cell-top">
           <div class="date-weather-wrap">
             <span class="date-number ${numClass}">${day}</span>
-            ${weatherIconHTML}
+            ${weatherHTML}
           </div>
           <i data-lucide="plus" class="add-hover-icon"></i>
         </div>
