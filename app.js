@@ -111,26 +111,45 @@ class MarathonApp {
     return map[code] || { icon: '☀️', desc: '맑음' };
   }
 
-  // Fetch Weather for Seoul (Lat: 37.5665, Lon: 126.9780)
+  // Fetch Weather for Seoul with Safe Date Horizon Clamping
   async fetchSeoulWeather(year, month) {
     try {
       const monthStr = String(month).padStart(2, '0');
       const totalDays = new Date(year, month, 0).getDate();
       const startDate = `${year}-${monthStr}-01`;
-      const endDate = `${year}-${monthStr}-${String(totalDays).padStart(2, '0')}`;
-      const todayStr = new Date().toISOString().split('T')[0];
+      const monthLastDate = `${year}-${monthStr}-${String(totalDays).padStart(2, '0')}`;
 
-      let apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=37.5665&longitude=126.9780&daily=weather_code&timezone=Asia%2FTokyo&start_date=${startDate}&end_date=${endDate}`;
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
 
-      if (endDate < todayStr) {
-        apiUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=37.5665&longitude=126.9780&daily=weather_code&timezone=Asia%2FTokyo&start_date=${startDate}&end_date=${endDate}`;
+      // Max Open-Meteo forecast horizon is ~14 days from today
+      const maxForecastDate = new Date(today);
+      maxForecastDate.setDate(maxForecastDate.getDate() + 14);
+      const maxForecastStr = maxForecastDate.toISOString().split('T')[0];
+
+      let endDate = monthLastDate;
+      if (monthLastDate > maxForecastStr) {
+        endDate = maxForecastStr;
+      }
+
+      let apiUrl = '';
+      if (monthLastDate < todayStr) {
+        // Past Historical Month -> Open-Meteo Archive API
+        apiUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=37.5665&longitude=126.9780&daily=weather_code&timezone=Asia%2FTokyo&start_date=${startDate}&end_date=${monthLastDate}`;
+      } else {
+        // Current or Future Month -> Open-Meteo Forecast API with Clamped Date Range
+        if (startDate > maxForecastStr) {
+          // Month is completely beyond 14-day forecast horizon
+          return;
+        }
+        apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=37.5665&longitude=126.9780&daily=weather_code&timezone=Asia%2FTokyo&start_date=${startDate}&end_date=${endDate}`;
       }
 
       const response = await fetch(apiUrl);
       if (response.ok) {
         const data = await response.json();
         if (data.daily && data.daily.time && data.daily.weather_code) {
-          const weatherMap = {};
+          const weatherMap = { ...this.weatherData };
           data.daily.time.forEach((t, i) => {
             const code = data.daily.weather_code[i];
             weatherMap[t] = this.getWeatherInfo(code);
