@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Marathon Mileage Hub - 마라톤 월 마일리지 캘린더</title>
+  <!-- Google Fonts & Lucide Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Top Navigation Header -->
+    <header class="main-header">
+      <div class="brand">
+        <div class="logo-icon">
+          <i data-lucide="flame"></i>
+        </div>
+        <div class="brand-text">
+          <h1>RUNNER'S MILEAGE</h1>
+          <span class="sub-title">Marathon Monthly Planner & Mileage Tracker</span>
+        </div>
+        <span id="garmin-status-badge" class="badge badge-neon" style="display:none; margin-left: 8px;"></span>
+      </div>
+
+      <div class="header-actions">
+        <button id="btn-sample-data" class="btn btn-outline" title="샘플 훈련 계획 불러오기">
+          <i data-lucide="sparkles"></i> 샘플 계획
+        </button>
+        <button id="btn-open-batch" class="btn btn-primary">
+          <i data-lucide="calendar-plus"></i> 일괄 등록
+        </button>
+        <button id="btn-clear-all" class="btn btn-outline danger-outline" title="모든 수동 마일리지 기록 초기화">
+          <i data-lucide="rotate-ccw"></i> 전체 초기화
+        </button>
+      </div>
+    </header>
+
+    <!-- KPI Metrics Dashboard -->
+    <section class="dashboard-section">
+      <div class="month-selector-card">
+        <button id="prev-month-btn" class="icon-btn" title="이전 달"><i data-lucide="chevron-left"></i></button>
+        <div class="current-month-display">
+          <h2 id="current-year-month">2026년 8월</h2>
+          <button id="today-btn" class="today-chip">오늘</button>
+        </div>
+        <button id="next-month-btn" class="icon-btn" title="다음 달"><i data-lucide="chevron-right"></i></button>
+      </div>
+
+      <div class="kpi-grid">
+        <!-- Target Mileage Card -->
+        <div class="kpi-card target-card">
+          <div class="kpi-header">
+            <span class="kpi-title"><i data-lucide="target"></i> 월 목표 마일리지</span>
+            <div class="goal-input-wrap">
+              <input type="number" id="target-mileage-input" value="200" min="0" max="1000" step="10">
+              <span class="unit">km</span>
+            </div>
+          </div>
+          <div class="kpi-body">
+            <div class="progress-info">
+              <span id="progress-percentage-text" class="kpi-highlight">0%</span>
+              <span id="remaining-mileage-text" class="sub-text">목표까지 200.0 km 남음</span>
+            </div>
+            <div class="progress-bar-track">
+              <div id="progress-bar-fill" class="progress-bar-fill" style="width: 0%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Total Completed Card -->
+        <div class="kpi-card total-card">
+          <div class="kpi-header">
+            <span class="kpi-title"><i data-lucide="trophy"></i> 이번 달 총 거리</span>
+            <span class="badge badge-neon">달성 중</span>
+          </div>
+          <div class="kpi-body">
+            <div class="kpi-main-val">
+              <span id="total-mileage-val">0.0</span> <span class="unit-lg">km</span>
+            </div>
+            <div class="kpi-sub-stats">
+              <span>총 러닝: <strong id="run-count-val">0</strong>회</span>
+              <span>평균 거리: <strong id="avg-distance-val">0.0</strong>km</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Run Type Breakdown Card -->
+        <div class="kpi-card type-breakdown-card">
+          <div class="kpi-header">
+            <span class="kpi-title"><i data-lucide="activity"></i> 훈련 유형별 비중</span>
+          </div>
+          <div class="type-mini-list" id="type-breakdown-list">
+            <!-- Dynamic Injection -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Calendar Area -->
+    <main class="calendar-container">
+      <div class="calendar-header-grid">
+        <div class="day-label sun">일</div>
+        <div class="day-label">월</div>
+        <div class="day-label">화</div>
+        <div class="day-label">수</div>
+        <div class="day-label">목</div>
+        <div class="day-label">금</div>
+        <div class="day-label sat">토</div>
+        <div class="day-label week-summary-label">주차별 소계</div>
+      </div>
+
+      <div class="calendar-body-grid" id="calendar-grid">
+        <!-- Dynamic Calendar Cells Generated via JavaScript -->
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal 1: Batch Registration (일괄 등록 모달) -->
+  <div id="batch-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i data-lucide="layers"></i>
+          <h3>마일리지 일괄 등록 플래너</h3>
+        </div>
+        <button class="close-modal-btn" id="close-batch-modal"><i data-lucide="x"></i></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Date Range Filter -->
+        <div class="form-group">
+          <label class="form-label"><i data-lucide="calendar"></i> 1. 적용 기간 선택</label>
+          <div class="date-range-inputs">
+            <input type="date" id="batch-start-date" class="form-input">
+            <span class="range-sep">~</span>
+            <input type="date" id="batch-end-date" class="form-input">
+          </div>
+        </div>
+
+        <!-- Pattern Selection Tabs -->
+        <div class="form-group">
+          <label class="form-label"><i data-lucide="sliders"></i> 2. 일괄 등록 패턴 설정</label>
+          <div class="tab-menu">
+            <button class="tab-btn active" data-tab="tab-daily">
+              <i data-lucide="repeat"></i> 매일 반복
+            </button>
+            <button class="tab-btn" data-tab="tab-weekly">
+              <i data-lucide="calendar-days"></i> 요일별 지정
+            </button>
+            <button class="tab-btn" data-tab="tab-lsd">
+              <i data-lucide="trending-up"></i> 주말 LSD 증량
+            </button>
+          </div>
+        </div>
+
+        <!-- Tab 1: Daily Content -->
+        <div id="tab-daily" class="tab-content active">
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label class="form-label">매일 러닝 거리 (km)</label>
+              <input type="number" id="daily-km" class="form-input" placeholder="예: 5" min="0" step="0.5">
+            </div>
+            <div class="form-group flex-1">
+              <label class="form-label">러닝 유형</label>
+              <select id="daily-type" class="form-select">
+                <option value="easy">Easy Run (조깅)</option>
+                <option value="tempo">Tempo Run (템포런)</option>
+                <option value="interval">Interval (인터벌)</option>
+                <option value="lsd">LSD (장거리 조깅)</option>
+                <option value="race">Race (대회)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Weekly Pattern Content -->
+        <div id="tab-weekly" class="tab-content">
+          <p class="tab-desc">원하는 요일에 체크하고 각 요일별 목표 거리를 입력하세요.</p>
+          <div class="weekly-pattern-grid">
+            <div class="weekday-item">
+              <label class="checkbox-label"><input type="checkbox" id="chk-mon" data-day="1"> 월요일</label>
+              <input type="number" id="km-mon" class="form-input input-sm" placeholder="km" min="0" step="0.5" disabled>
+            </div>
+            <div class="weekday-item">
+              <label class="checkbox-label"><input type="checkbox" id="chk-tue" data-day="2"> 화요일</label>
+              <input type="number" id="km-tue" class="form-input input-sm" placeholder="km" min="0" step="0.5" disabled>
+            </div>
+            <div class="weekday-item">
+              <label class="checkbox-label"><input type="checkbox" id="chk-wed" data-day="3"> 수요일</label>
+              <input type="number" id="km-wed" class="form-input input-sm" placeholder="km" min="0" step="0.5" disabled>
+            </div>
+            <div class="weekday-item">
+              <label class="checkbox-label"><input type="checkbox" id="chk-thu" data-day="4"> 목요일</label>
+              <input type="number" id="km-thu" class="form-input input-sm" placeholder="km" min="0" step="0.5" disabled>
+            </div>
+            <div class="weekday-item">
+              <label class="checkbox-label"><input type="checkbox" id="chk-fri" data-day="5"> 금요일</label>
+              <input type="number" id="km-fri" class="form-input input-sm" placeholder="km" min="0" step="0.5" disabled>
+            </div>
+            <div class="weekday-item highlight-day">
+              <label class="checkbox-label"><input type="checkbox" id="chk-sat" data-day="6"> 토요일</label>
+              <input type="number" id="km-sat" class="form-input input-sm" placeholder="km" min="0" step="0.5" disabled>
+            </div>
+            <div class="weekday-item highlight-day">
+              <label class="checkbox-label"><input type="checkbox" id="chk-sun" data-day="0"> 일요일</label>
+              <input type="number" id="km-sun" class="form-input input-sm" placeholder="km" min="0" step="0.5" disabled>
+            </div>
+          </div>
+          <div class="form-group margin-top-md">
+            <label class="form-label">기본 러닝 유형</label>
+            <select id="weekly-type" class="form-select">
+              <option value="easy">Easy Run (조깅)</option>
+              <option value="tempo">Tempo Run (템포런)</option>
+              <option value="interval">Interval (인터벌)</option>
+              <option value="lsd">LSD (장거리 조깅)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Tab 3: Weekend LSD Content -->
+        <div id="tab-lsd" class="tab-content">
+          <div class="lsd-banner">
+            <i data-lucide="zap"></i>
+            <div>
+              <strong>주말 LSD 점진적 증량 플래너</strong>
+              <p>풀마라톤 대비를 위해 주차별로 LSD 거리를 매주 단계별로 늘려갑니다.</p>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label class="form-label">LSD 전용 요일</label>
+              <select id="lsd-day-select" class="form-select">
+                <option value="6">토요일</option>
+                <option value="0">일요일</option>
+              </select>
+            </div>
+            <div class="form-group flex-1">
+              <label class="form-label">1주차 시작 거리 (km)</label>
+              <input type="number" id="lsd-start-km" class="form-input" value="16" min="5" step="1">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label class="form-label">매주 증량 거리 (km)</label>
+              <input type="number" id="lsd-step-km" class="form-input" value="2" min="0" step="1">
+            </div>
+            <div class="form-group flex-1">
+              <label class="form-label">최대 제한 거리 (km)</label>
+              <input type="number" id="lsd-max-km" class="form-input" value="32" min="10" step="1">
+            </div>
+          </div>
+        </div>
+
+        <!-- Overwrite Mode Selection -->
+        <div class="form-group">
+          <label class="form-label"><i data-lucide="database"></i> 3. 등록 방식 선택</label>
+          <div class="mode-select-box">
+            <label class="radio-label">
+              <input type="radio" name="batch-mode" value="overwrite" checked>
+              <span>기존 일정 덮어쓰기</span>
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="batch-mode" value="add">
+              <span>기존 일정에 추가 합산</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="cancel-batch-btn">취소</button>
+        <button class="btn btn-primary" id="apply-batch-btn">
+          <i data-lucide="check"></i> 일괄 적용하기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Single Day Edit (개별 날짜 직접 수정 모달) -->
+  <div id="single-edit-modal" class="modal-overlay hidden">
+    <div class="modal-card modal-sm">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i data-lucide="edit-3"></i>
+          <h3 id="edit-modal-date-title">2026년 8월 15일 수정</h3>
+        </div>
+        <button class="close-modal-btn" id="close-edit-modal"><i data-lucide="x"></i></button>
+      </div>
+
+      <div class="modal-body">
+        <form id="single-edit-form">
+          <input type="hidden" id="edit-date-key">
+          
+          <div class="form-group">
+            <label class="form-label">러닝 거리 (km)</label>
+            <div class="km-input-row">
+              <input type="number" id="edit-km" class="form-input input-lg" placeholder="0.0" min="0" max="100" step="0.1" required>
+              <span class="unit">km</span>
+            </div>
+            <!-- Quick Distance Increment Chips -->
+            <div class="quick-chips">
+              <button type="button" class="chip-btn" data-add="1">+1km</button>
+              <button type="button" class="chip-btn" data-add="5">+5km</button>
+              <button type="button" class="chip-btn" data-add="10">+10km</button>
+              <button type="button" class="chip-btn" data-set="21.097">하프(21.1)</button>
+              <button type="button" class="chip-btn" data-set="42.195">풀(42.2)</button>
+              <button type="button" class="chip-btn danger-chip" data-set="0">휴식(0km)</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">훈련 유형</label>
+            <div class="type-pill-selector">
+              <label class="type-pill pill-easy">
+                <input type="radio" name="edit-type" value="easy" checked>
+                <span>Easy</span>
+              </label>
+              <label class="type-pill pill-tempo">
+                <input type="radio" name="edit-type" value="tempo">
+                <span>Tempo</span>
+              </label>
+              <label class="type-pill pill-interval">
+                <input type="radio" name="edit-type" value="interval">
+                <span>Interval</span>
+              </label>
+              <label class="type-pill pill-lsd">
+                <input type="radio" name="edit-type" value="lsd">
+                <span>LSD</span>
+              </label>
+              <label class="type-pill pill-race">
+                <input type="radio" name="edit-type" value="race">
+                <span>Race</span>
+              </label>
+              <label class="type-pill pill-rest">
+                <input type="radio" name="edit-type" value="rest">
+                <span>Rest</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">메모 & 런닝화</label>
+            <input type="text" id="edit-note" class="form-input" placeholder="예: 알파플라이3 착용, 페이스 4:50/km">
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-footer space-between">
+        <button class="btn btn-ghost danger-ghost" id="delete-entry-btn">
+          <i data-lucide="trash-2"></i> 기록 삭제
+        </button>
+        <div class="btn-group">
+          <button class="btn btn-ghost" id="cancel-edit-btn">취소</button>
+          <button class="btn btn-primary" id="save-edit-btn">
+            <i data-lucide="check"></i> 저장하기
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
