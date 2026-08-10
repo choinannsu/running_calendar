@@ -46,7 +46,6 @@ class MarathonApp {
     const badgeEl = document.getElementById('garmin-status-badge');
     if (badgeEl) {
       if (isAvailable && Object.keys(this.garminData).length > 0) {
-        const updatedTime = this.garminLastUpdated ? new Date(this.garminLastUpdated).toLocaleDateString('ko-KR') : '';
         badgeEl.style.display = 'inline-flex';
         badgeEl.innerHTML = `<i data-lucide="watch"></i> Garmin 연동됨 (${Object.keys(this.garminData).length}건)`;
         badgeEl.className = 'badge badge-neon';
@@ -205,7 +204,6 @@ class MarathonApp {
     document.getElementById('current-year-month').textContent = `${this.currentYear}년 ${this.currentMonth}월`;
   }
 
-  // Get Effective Entry for Date (Merge Manual + Garmin)
   getEffectiveEntry(dateStr) {
     const garminEntry = this.garminData[dateStr];
     const manualEntry = this.mileageData[dateStr];
@@ -228,8 +226,6 @@ class MarathonApp {
     const typeCount = { easy: 0, tempo: 0, interval: 0, lsd: 0, race: 0, rest: 0 };
 
     const monthPrefix = `${this.currentYear}-${String(this.currentMonth).padStart(2, '0')}`;
-    
-    // Combine date keys from both manual and Garmin data
     const allDateKeys = new Set([...Object.keys(this.mileageData), ...Object.keys(this.garminData)]);
 
     allDateKeys.forEach(dateStr => {
@@ -264,7 +260,6 @@ class MarathonApp {
     const progressBar = document.getElementById('progress-bar-fill');
     progressBar.style.width = `${Math.min(percentage, 100)}%`;
 
-    // Type Breakdown List
     const typeBreakdownList = document.getElementById('type-breakdown-list');
     typeBreakdownList.innerHTML = '';
     
@@ -353,14 +348,16 @@ class MarathonApp {
             rest: 'REST'
           };
 
-          const garminBadge = entry.isGarmin ? '<span title="Garmin 시계 측정 데이터" style="color:var(--electric-blue); font-weight:bold; margin-right:4px;">⌚</span>' : '';
+          const garminBadge = entry.isGarmin ? '<span class="garmin-icon" title="Garmin 시계 측정 데이터">⌚</span>' : '';
 
           entryHTML = `
             <div class="entry-badge type-${entry.type || 'easy'}">
-              <span class="entry-km">${garminBadge}${dist > 0 ? dist + ' km' : '휴식'}</span>
-              <span class="entry-tag">${typeNameMap[entry.type] || 'EASY'}</span>
+              <div class="entry-top-row">
+                <span class="entry-km">${garminBadge}${dist > 0 ? dist + ' km' : '휴식'}</span>
+                <span class="entry-tag">${typeNameMap[entry.type] || 'EASY'}</span>
+              </div>
+              ${entry.note ? `<div class="cell-bottom-note" title="${entry.note}">${entry.note}</div>` : ''}
             </div>
-            ${entry.note ? `<div class="cell-bottom-note" title="${entry.note}">${entry.note}</div>` : ''}
           `;
         }
       }
@@ -391,7 +388,7 @@ class MarathonApp {
         weekSummaryCell.className = 'week-summary-cell';
         weekSummaryCell.innerHTML = `
           <span class="week-title">주차 소계</span>
-          <span class="week-total-km">${currentWeekKm.toFixed(1)} <small style="font-size:0.75rem">km</small></span>
+          <span class="week-total-km">${currentWeekKm.toFixed(1)} <small style="font-size:0.7rem">km</small></span>
         `;
         gridContainer.appendChild(weekSummaryCell);
         
