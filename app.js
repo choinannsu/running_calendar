@@ -303,8 +303,6 @@ class MarathonApp {
       });
     }
 
-    document.getElementById('btn-sample-data').addEventListener('click', () => this.loadSampleData());
-
     document.getElementById('btn-clear-all').addEventListener('click', () => {
       if (confirm('정말로 모든 수동 마일리지 및 수정 기록을 초기화하시겠습니까?')) {
         this.mileageData = {};
@@ -747,44 +745,6 @@ class MarathonApp {
     this.saveStateToStorage();
     this.render();
     document.getElementById('single-edit-modal').classList.add('hidden');
-  }
-
-  loadSampleData() {
-    if (!confirm('샘플 풀마라톤 훈련 계획을 불러오시겠습니까? (기존 데이터에 추가됩니다)')) return;
-
-    const year = this.currentYear;
-    const month = String(this.currentMonth).padStart(2, '0');
-    const daysInMonth = new Date(year, this.currentMonth, 0).getDate();
-
-    let lsdKm = 18;
-
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dateStr = `${year}-${month}-${String(day).padStart(2, '0')}`;
-      const dayOfWeek = new Date(year, this.currentMonth - 1, day).getDay();
-
-      if (dayOfWeek === 1) {
-        this.mileageData[dateStr] = { distance: 0, type: 'rest', note: '완전 휴식' };
-      } else if (dayOfWeek === 2) {
-        this.mileageData[dateStr] = { distance: 8, type: 'easy', note: '조깅 페이스 5:30' };
-      } else if (dayOfWeek === 3) {
-        this.mileageData[dateStr] = { distance: 10, type: 'interval', note: '1km x 5회 (페이스 4:15)' };
-      } else if (dayOfWeek === 4) {
-        this.mileageData[dateStr] = { distance: 8, type: 'easy', note: '회복 조깅' };
-      } else if (dayOfWeek === 5) {
-        this.mileageData[dateStr] = { distance: 12, type: 'tempo', note: '빌드업 템포런' };
-      } else if (dayOfWeek === 6) {
-        this.mileageData[dateStr] = { distance: lsdKm, type: 'lsd', note: `주말 LSD ${lsdKm}km` };
-        lsdKm = Math.min(lsdKm + 2, 32);
-      } else if (dayOfWeek === 0) {
-        this.mileageData[dateStr] = { distance: 5, type: 'easy', note: '가벼운 폼롤링 & 조깅' };
-      }
-    }
-
-    this.targetMileage = 220;
-    document.getElementById('target-mileage-input').value = 220;
-    this.saveStateToStorage();
-    this.render();
-    alert('샘플 풀마라톤 훈련 계획이 적용되었습니다!');
   }
 }
 
