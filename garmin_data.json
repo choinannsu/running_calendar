@@ -1,6 +1,13 @@
 {
-  "updatedAt": "2026-08-10T12:09:01.131810",
+  "updatedAt": "2026-08-10T18:51:51.157814",
   "runs": {
+    "2026-08-10": {
+      "distance": 7.8,
+      "type": "easy",
+      "note": "⌚ Garmin: 러닝 (페이스 7:24/km)",
+      "isGarmin": true,
+      "pace": "7:24"
+    },
     "2026-08-08": {
       "distance": 12.3,
       "type": "easy",
