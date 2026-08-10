@@ -79,21 +79,10 @@ class MarathonApp {
         card.classList.add('shake-anim');
       }
     });
-
-    // Lock Button in Header
-    document.getElementById('btn-lock-app').addEventListener('click', () => {
-      sessionStorage.removeItem('app_unlocked');
-      passInput.value = '';
-      lockTitle.textContent = "🔒 보안 잠금";
-      lockDesc.textContent = "마라톤 캘린더에 접근하려면 비밀번호를 입력해 주세요.";
-      document.getElementById('lock-error-msg').classList.add('hidden');
-      overlay.classList.remove('hidden');
-      appContainer.classList.add('app-hidden');
-    });
   }
 
   // Fetch Garmin Synced Data (garmin_data.json)
-  async fetchGarminData() {
+  async fetchGarminData(showToast = false) {
     try {
       const response = await fetch('garmin_data.json?t=' + new Date().getTime());
       if (response.ok) {
@@ -102,12 +91,19 @@ class MarathonApp {
           this.garminData = json.runs || {};
           this.garminLastUpdated = json.updatedAt;
           this.updateGarminStatusBadge(true);
+          if (showToast) {
+            alert(`✅ 가민 최신 데이터 동기화 완료! (총 ${Object.keys(this.garminData).length}건)`);
+          }
+          return true;
         }
       }
+      if (showToast) alert('⚠️ 아직 동기화된 가민 데이터(garmin_data.json)가 없습니다.');
     } catch (e) {
       console.log('garmin_data.json not loaded yet or local mode.');
       this.updateGarminStatusBadge(false);
+      if (showToast) alert('⚠️ 가민 동기화 데이터를 불러올 수 없습니다.');
     }
+    return false;
   }
 
   updateGarminStatusBadge(isAvailable) {
@@ -167,6 +163,21 @@ class MarathonApp {
       this.saveStateToStorage();
       this.updateDashboardMetrics();
     });
+
+    // Garmin Manual Sync Button Handler
+    const syncGarminBtn = document.getElementById('btn-sync-garmin');
+    if (syncGarminBtn) {
+      syncGarminBtn.addEventListener('click', async () => {
+        syncGarminBtn.innerHTML = `<i data-lucide="loader-2" class="spin"></i> 동기화 중...`;
+        if (window.lucide) window.lucide.createIcons();
+
+        await this.fetchGarminData(true);
+        this.render();
+
+        syncGarminBtn.innerHTML = `<i data-lucide="refresh-cw"></i> 가민 동기화`;
+        if (window.lucide) window.lucide.createIcons();
+      });
+    }
 
     document.getElementById('btn-sample-data').addEventListener('click', () => this.loadSampleData());
 
@@ -260,18 +271,15 @@ class MarathonApp {
     document.getElementById('current-year-month').textContent = `${this.currentYear}년 ${this.currentMonth}월`;
   }
 
-  // Get Effective Entry: User's Manual Overrides Take Precedence over Garmin
   getEffectiveEntry(dateStr) {
     const manualEntry = this.mileageData[dateStr];
     const garminEntry = this.garminData[dateStr];
 
-    // User manual edit or explicit deletion exists
     if (manualEntry !== undefined) {
       if (manualEntry.isDeleted) return null;
       return manualEntry;
     }
 
-    // Default fallback to Garmin synced data
     if (garminEntry) {
       return {
         distance: garminEntry.distance,
@@ -573,7 +581,6 @@ class MarathonApp {
     const note = document.getElementById('edit-note').value.trim();
 
     if (km > 0 || type === 'rest') {
-      // User manual edit takes precedence over Garmin
       this.mileageData[dateKey] = {
         distance: type === 'rest' ? 0 : km,
         type: type,
@@ -581,7 +588,6 @@ class MarathonApp {
       };
     } else {
       if (this.garminData[dateKey]) {
-        // Mark Garmin entry as explicitly deleted by user
         this.mileageData[dateKey] = { isDeleted: true };
       } else {
         delete this.mileageData[dateKey];
@@ -596,7 +602,6 @@ class MarathonApp {
   handleDeleteSingleEdit() {
     const dateKey = document.getElementById('edit-date-key').value;
     if (this.garminData[dateKey]) {
-      // Explicitly mark Garmin entry as deleted by user
       this.mileageData[dateKey] = { isDeleted: true };
     } else {
       delete this.mileageData[dateKey];
