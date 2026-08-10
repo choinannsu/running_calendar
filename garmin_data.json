@@ -1,0 +1,75 @@
+{
+  "updatedAt": "2026-08-10T12:09:01.131810",
+  "runs": {
+    "2026-08-08": {
+      "distance": 12.3,
+      "type": "easy",
+      "note": "⌚ Garmin: 러닝 (페이스 6:40/km)",
+      "isGarmin": true,
+      "pace": "6:40"
+    },
+    "2026-08-06": {
+      "distance": 6.7,
+      "type": "easy",
+      "note": "⌚ Garmin: 러닝 (페이스 6:39/km)",
+      "isGarmin": true,
+      "pace": "6:39"
+    },
+    "2026-08-04": {
+      "distance": 5.7,
+      "type": "easy",
+      "note": "⌚ Garmin: 트레드밀 러닝 (페이스 7:14/km)",
+      "isGarmin": true,
+      "pace": "7:14"
+    },
+    "2026-07-31": {
+      "distance": 7.6,
+      "type": "easy",
+      "note": "⌚ Garmin: 러닝 (페이스 6:37/km)",
+      "isGarmin": true,
+      "pace": "6:37"
+    },
+    "2026-07-28": {
+      "distance": 7.2,
+      "type": "easy",
+      "note": "⌚ Garmin: 러닝 (페이스 6:03/km)",
+      "isGarmin": true,
+      "pace": "6:03"
+    },
+    "2026-07-25": {
+      "distance": 8.7,
+      "type": "easy",
+      "note": "⌚ Garmin: 러닝 (페이스 6:38/km)",
+      "isGarmin": true,
+      "pace": "6:38"
+    },
+    "2026-07-18": {
+      "distance": 5.3,
+      "type": "easy",
+      "note": "⌚ Garmin: 러닝 (페이스 6:04/km)",
+      "isGarmin": true,
+      "pace": "6:04"
+    },
+    "2026-07-06": {
+      "distance": 4.5,
+      "type": "easy",
+      "note": "⌚ Garmin: 트레드밀 러닝 (페이스 6:40/km)",
+      "isGarmin": true,
+      "pace": "6:40"
+    },
+    "2026-07-05": {
+      "distance": 7.0,
+      "type": "easy",
+      "note": "⌚ Garmin: 기초체력 양성 (페이스 6:12/km)",
+      "isGarmin": true,
+      "pace": "6:12"
+    },
+    "2026-07-03": {
+      "distance": 7.1,
+      "type": "easy",
+      "note": "⌚ Garmin: 러닝 (페이스 6:16/km)",
+      "isGarmin": true,
+      "pace": "6:16"
+    }
+  }
+}
