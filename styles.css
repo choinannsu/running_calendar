@@ -51,7 +51,7 @@ body {
   font-family: var(--font-body);
   line-height: 1.4;
   min-height: 100vh;
-  padding: 12px 14px;
+  padding: 8px 12px;
   background-image: 
     radial-gradient(circle at 10% 20%, rgba(0, 255, 102, 0.03) 0%, transparent 40%),
     radial-gradient(circle at 90% 80%, rgba(255, 85, 0, 0.03) 0%, transparent 40%);
@@ -183,11 +183,14 @@ body {
 
 .app-container {
   width: 100%;
-  max-width: 1320px;
-  margin: 0 auto;
+  max-width: 100%;
+  margin: 0;
+  padding: 0 4px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
+  min-height: calc(100vh - 16px);
+  justify-content: space-between;
 }
 
 /* Header Styles */
@@ -545,7 +548,7 @@ body {
 
 .calendar-header-grid {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr)) 82px;
+  grid-template-columns: repeat(7, minmax(0, 1fr)) 90px;
   gap: 6px;
   margin-bottom: 6px;
   width: 100%;
@@ -570,7 +573,7 @@ body {
 
 .calendar-body-grid {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr)) 82px;
+  grid-template-columns: repeat(7, minmax(0, 1fr)) 90px;
   gap: 6px;
   width: 100%;
 }
@@ -579,7 +582,7 @@ body {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  min-height: 84px;
+  min-height: calc((100vh - 250px) / 5);
   padding: 6px 8px;
   display: flex;
   flex-direction: column;
