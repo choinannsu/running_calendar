@@ -183,14 +183,11 @@ body {
 
 .app-container {
   width: 100%;
-  max-width: 100%;
-  margin: 0;
-  padding: 0 4px;
+  max-width: 1320px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  min-height: calc(100vh - 16px);
-  justify-content: space-between;
+  gap: 12px;
 }
 
 /* Header Styles */
