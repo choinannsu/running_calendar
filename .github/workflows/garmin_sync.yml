@@ -1,12 +1,10 @@
-name: Garmin Connect Auto Sync
+name: Auto Sync Garmin Running Data
 
 on:
   schedule:
-    - cron: '0 0,6,12,18 * * *'
-  workflow_dispatch:
-
-permissions:
-  contents: write
+    # Run every 6 hours automatically (00:00, 06:00, 12:00, 18:00 UTC)
+    - cron: '0 */6 * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
 
 jobs:
   sync-garmin:
@@ -14,28 +12,47 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5.3.0
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.10'
 
-      - name: Install Dependencies
+      - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Garmin Sync Script
+      - name: Fetch Garmin Running Data
         env:
           GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
           GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
         run: |
           python sync_garmin.py
 
-      - name: Commit and Push Updated Data
+      - name: Commit & Push to GitHub Repository
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
+          git config --global user.name "GitHub Actions AutoSync"
+          git config --global user.email "actions@github.com"
           git add garmin_data.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-sync Garmin Connect data [skip ci]" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update Garmin mileage data [skip ci]" && git push origin main)
+
+      - name: Deploy garmin_data.json to GCP VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: '35.252.164.151'
+          username: 'ggcns722'
+          key: ${{ secrets.GCP_SSH_KEY }}
+          source: 'garmin_data.json'
+          target: '/tmp/'
+
+      - name: Update Web Server Data on GCP VM
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: '35.252.164.151'
+          username: 'ggcns722'
+          key: ${{ secrets.GCP_SSH_KEY }}
+          script: |
+            sudo mv /tmp/garmin_data.json /var/www/html/garmin_data.json
+            sudo chmod 644 /var/www/html/garmin_data.json
